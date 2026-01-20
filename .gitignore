@@ -22,3 +22,5 @@ tiles/data/*.mbtiles
 postgres_data/
 tiles_cache/
 redis_data/
+
+api/
