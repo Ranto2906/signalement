@@ -43,10 +43,10 @@ services:
       DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD:-password}@postgres:5432/${DB_NAME:-travaux_routiers}
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
       JWT_EXPIRE: ${JWT_EXPIRE:-24h}
-      PORT: 3000
+      PORT: 3001
       FIREBASE_CONFIG: ${FIREBASE_CONFIG:-{}}
     ports:
-      - "${API_PORT:-3000}:3000"
+      - "${API_PORT:-3001}:3001"
     depends_on:
       postgres:
         condition: service_healthy
