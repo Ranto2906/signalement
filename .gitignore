@@ -1,0 +1,24 @@
+# Dépendances Node
+node_modules/
+npm-debug.log
+package-lock.json
+
+# Variables d'environnement
+.env
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Données
+tiles/data/*.osm.pbf
+tiles/data/*.mbtiles
+
+# Docker volumes
+postgres_data/
+tiles_cache/
+redis_data/

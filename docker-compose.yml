@@ -1,0 +1,120 @@
+# ============================================
+# DOCKER COMPOSE - Projet Travaux Routiers
+# ============================================
+
+services:
+  # ============================================
+  # 1. PostgreSQL - Base de données principale
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: travaux_db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-travaux_routiers}
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5433:5432"
+    volumes:
+      # Montage du schéma SQL pour initialisation automatique
+      - ./database:/docker-entrypoint-initdb.d
+      # Volume persistent pour les données
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - travaux_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ============================================
+  # 2. API REST - Authentification & Backend
+  # ============================================
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: travaux_api
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD:-password}@postgres:5432/${DB_NAME:-travaux_routiers}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      JWT_EXPIRE: ${JWT_EXPIRE:-24h}
+      PORT: 3000
+      FIREBASE_CONFIG: ${FIREBASE_CONFIG:-{}}
+    ports:
+      - "${API_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # Hot reload en développement (optionnel)
+      - ./api/src:/app/src
+    networks:
+      - travaux_network
+    restart: unless-stopped
+
+  # ============================================
+  # 4. Serveur de Cartes - OpenStreetMap Offline
+  # ============================================
+  tile-server:
+    image: overv/openstreetmap-tile-server:latest
+    container_name: travaux_tiles
+    command: import
+    environment:
+      ALLOW_CORS: "true"
+      THREADS: "4"
+    ports:
+      - "${TILE_PORT:-8080}:80"
+    volumes:
+      # Dossier contenant les fichiers .pbf (carte)
+      - ./tiles/data:/data
+      # Cache PostgreSQL pour les tuiles
+      - tiles_cache:/var/lib/postgresql/12/main
+    networks:
+      - travaux_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/tile/0/0/0.png"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+  # ============================================
+  # 5. Redis - Cache (optionnel mais recommandé)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: travaux_redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - travaux_network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+
+
+# ============================================
+# VOLUMES PERSISTANTS
+# ============================================
+volumes:
+  postgres_data:
+    driver: local
+  tiles_cache:
+    driver: local
+  redis_data:
+    driver: local
+
+# ============================================
+# RÉSEAU
+# ============================================
+networks:
+  travaux_network:
+    driver: bridge
